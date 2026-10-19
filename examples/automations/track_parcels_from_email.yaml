@@ -1,0 +1,117 @@
+# Extract Colisweb tracking codes from incoming e-mail and register them
+# with `colisweb.track_parcel`, so parcels start tracking the moment the
+# shipping confirmation lands in your inbox — no manual entry.
+#
+# Requirements:
+#   - one or more core IMAP config entries with "text" enabled under
+#     "message data" and the max message size raised (carrier mails are
+#     long) — full setup guide and pitfalls: track_parcels_from_email.md
+#   - optional: an `ai_task` entity for the AI fallback branch; delete
+#     the whole `else:` block if you don't use one
+#   - PRIVACY: by default this fires on EVERY incoming mail and (with the
+#     AI branch) can send mail bodies to your AI Task. Scope the IMAP
+#     search to the carrier's sender first — see "Scope & privacy" in the .md.
+#
+# The regex is deliberately written without backslashes (`(?<![0-9A-Za-z])`
+# instead of `\b`, `[0-9]` instead of `\d`): Jinja treats `\b` inside a
+# string literal as a backspace escape, so the pattern would silently
+# never match.
+
+alias: "Colisweb: track from e-mail"
+description: >-
+  Listens to imap_content events from all IMAP entries. Fast regex path for
+  Colisweb tracking codes; optional AI fallback for mails whose layout the
+  regex does not recognise.
+mode: queued
+max: 10
+
+triggers:
+  - trigger: event
+    event_type: imap_content
+
+variables:
+  sender: "{{ trigger.event.data.sender | default('') | lower }}"
+  subject: "{{ trigger.event.data.subject | default('') }}"
+  body: "{{ trigger.event.data.text | default('') }}"
+  content: "{{ subject ~ ' ' ~ body }}"
+  # Colisweb numbers are plain 8-32 digit strings with no prefix, so the regex
+  # only runs on mail whose sender mentions colisweb; otherwise every order or
+  # phone number in a mail would match.
+  colisweb_codes: >-
+    {{ (content | regex_findall('(?<![0-9])[0-9]{8,32}(?![0-9])') | unique | list)
+       if sender is search('colisweb') else [] }}
+  # Keyword gate for the AI fallback — localise to your language(s).
+  is_parcel_mail: >-
+    {{ content | lower is search('package|shipped|out for delivery|track|shipment|delivery') }}
+
+conditions:
+  # initial=true means "new message"; false means a duplicate trigger of
+  # the SAME message (e.g. after a reconnect) — requiring it is free dedup.
+  - condition: template
+    value_template: "{{ trigger.event.data.initial | default(true) }}"
+  - condition: template
+    value_template: "{{ is_parcel_mail or colisweb_codes | count > 0 }}"
+
+actions:
+  - repeat:
+      for_each: "{{ colisweb_codes }}"
+      sequence:
+        - action: colisweb.track_parcel
+          data:
+            tracking_code: "{{ repeat.item }}"
+  - if:
+      - condition: template
+        value_template: "{{ colisweb_codes | count > 0 }}"
+    then:
+      - action: notify.mobile_app_your_phone
+        data:
+          title: "📦 Colisweb parcel picked up from mail"
+          message: >-
+            {{ colisweb_codes | join(', ') }} (mail from {{ sender }})
+    else:
+      # ---- Optional AI fallback — delete this block if you have no ai_task entity ----
+      - action: ai_task.generate_data
+        data:
+          task_name: colisweb-tracking-code-extraction
+          entity_id: ai_task.your_ai_task_entity
+          instructions: >-
+            Below is an e-mail. Determine whether it contains a Colisweb
+            parcel tracking code. Colisweb codes are
+            8 to 32 digits with no letters. Only return a real tracking
+            number, never an order, customer, phone or invoice number. If the
+            mail is from a different carrier, answer 'other'. When in
+            doubt: 'none'.
+
+            Sender: {{ sender }}
+            Subject: {{ subject }}
+            Body:
+            {{ body[:6000] }}
+          structure:
+            carrier:
+              description: Whether a Colisweb tracking code was found
+              required: true
+              selector:
+                select:
+                  options: ["colisweb", "other", "none"]
+            tracking_code:
+              description: The tracking code, or empty if none
+              required: false
+              selector:
+                text:
+        response_variable: ai_result
+      - choose:
+          - conditions: "{{ ai_result.data.carrier == 'colisweb' and (ai_result.data.tracking_code | default('') | trim) != '' }}"
+            sequence:
+              - action: colisweb.track_parcel
+                data:
+                  tracking_code: "{{ ai_result.data.tracking_code | trim }}"
+              - action: notify.mobile_app_your_phone
+                data:
+                  title: "📦 Colisweb parcel picked up from mail (AI)"
+                  message: "{{ ai_result.data.tracking_code | trim }} (mail from {{ sender }})"
+          - conditions: "{{ ai_result.data.carrier == 'other' and (ai_result.data.tracking_code | default('') | trim) != '' }}"
+            sequence:
+              - action: notify.mobile_app_your_phone
+                data:
+                  title: "📦 Tracking number found – not a Colisweb parcel"
+                  message: "{{ ai_result.data.tracking_code | trim }} (mail from {{ sender }}, subject: {{ subject }})"
