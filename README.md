@@ -56,7 +56,11 @@ A custom Home Assistant integration that tracks your [Colisweb](https://www.coli
 
 1. In HACS, choose the three-dot menu → **Custom repositories**.
 2. Add `https://github.com/ha-parcel-integrations/ha-colisweb` as an **Integration**.
-3. Install **Colisweb** and restart Home Assistant.
+3. Install **Colisweb** and restart Home Assistant if HACS asks you to.
+
+Or click the button below to open it directly in HACS:
+
+[![Open your Home Assistant instance and open this repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ha-parcel-integrations&repository=ha-colisweb&category=integration)
 
 ### Manual
 
@@ -64,7 +68,9 @@ Copy `custom_components/colisweb` into your `config/custom_components/` folder a
 
 ## Configuration
 
-Add the integration via **Settings → Devices & Services → Add Integration → Colisweb**. There is nothing to fill in: the hub is created immediately (Colisweb tracking needs no account).
+[![Open your Home Assistant instance and start setting up this integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=colisweb)
+
+Or set it up by hand: add the integration via **Settings → Devices & Services → Add Integration → Colisweb**. There is nothing to fill in: the hub is created immediately (Colisweb tracking needs no account).
 
 Then add parcels via the integration's **Configure** dialog, the [`colisweb.track_parcel`](#services) service, or a [dashboard button](examples/dashboards/add_parcel_card.yaml). The tracking number is in the SMS or e-mail Colisweb sent about the delivery. A number is only checked for its shape (8 to 32 digits, spaces and dashes removed) when you add it; it is not looked up first, because Colisweb answers the same empty error for an unknown number and for a temporary outage.
 
