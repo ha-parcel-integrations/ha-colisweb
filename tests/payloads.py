@@ -3,6 +3,7 @@
 Every value is invented; only the key set, nullability and timestamp formats
 follow the shape of a live reply.
 """
+
 from __future__ import annotations
 
 ACTIVE_CODE = "20000002"

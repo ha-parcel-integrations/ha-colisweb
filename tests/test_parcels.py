@@ -1,6 +1,7 @@
 """Tests for the pure parcel-mapping helpers."""
+
+from datetime import UTC, datetime, timedelta
 import logging
-from datetime import datetime, timedelta, timezone
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -38,7 +39,7 @@ from .payloads import (
 
 
 @pytest.mark.parametrize(
-    "step,expected",
+    ("step", "expected"),
     [
         ("idle", ParcelStatus.REGISTERED),
         ("confirmed", ParcelStatus.REGISTERED),
@@ -69,7 +70,8 @@ def test_map_parcel_status_known(step, expected):
 
 
 @pytest.mark.parametrize(
-    "variant", ["NON_DELIVERABLE", "non-deliverable", "NonDeliverable", "nondeliverable"]
+    "variant",
+    ["NON_DELIVERABLE", "non-deliverable", "NonDeliverable", "nondeliverable"],
 )
 def test_map_parcel_status_ignores_case_and_separators(variant):
     assert map_parcel_status(variant) == ParcelStatus.PROBLEM
@@ -106,7 +108,7 @@ def test_unmapped_status_warns_only_once(caplog):
 def test_parse_iso_handles_z_naive_and_garbage():
     assert parse_iso("2026-04-29T13:12:42Z").tzinfo is not None
     # A naive value is assumed UTC so mixed lists still sort.
-    assert parse_iso("2026-04-29T13:12:42").tzinfo == timezone.utc
+    assert parse_iso("2026-04-29T13:12:42").tzinfo == UTC
     assert parse_iso("not-a-date") is None
     assert parse_iso(None) is None
 
@@ -180,7 +182,9 @@ def test_build_history_keeps_unparseable_timestamp_last():
 
 def test_build_history_caps_to_max_events():
     raw = delivered_sample()
-    assert len(build_history(raw, ParcelStatus.DELIVERED, "delivered", max_events=2)) == 2
+    assert (
+        len(build_history(raw, ParcelStatus.DELIVERED, "delivered", max_events=2)) == 2
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -440,7 +444,7 @@ def _entry(filter_type: str, amount: int) -> MockConfigEntry:
 
 
 def _delivered_pair() -> list[dict]:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return [
         {"barcode": "RECENT", "delivered_at": (now - timedelta(days=1)).isoformat()},
         {"barcode": "OLD", "delivered_at": (now - timedelta(days=30)).isoformat()},
@@ -485,7 +489,7 @@ def test_the_step_seen_live_does_not_warn(caplog):
 
 
 @pytest.mark.parametrize(
-    "overrides,expected",
+    ("overrides", "expected"),
     [
         ({"deliveredDate": "2026-04-29T13:12:42.000Z"}, ParcelStatus.DELIVERED),
         ({}, ParcelStatus.IN_TRANSIT),

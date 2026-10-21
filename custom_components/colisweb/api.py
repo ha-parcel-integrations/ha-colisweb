@@ -1,4 +1,5 @@
 """Colisweb public tracking API client."""
+
 from __future__ import annotations
 
 from typing import Any

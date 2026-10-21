@@ -10,10 +10,11 @@ The carrier-specific parts are :data:`_STATUS_MAP`, the milestone history and
 :func:`normalize_parcel`; the timestamp parsing, the sort contract, the
 delivered filter and the one-shot warnings are suite-wide machinery.
 """
+
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 import logging
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -201,11 +202,11 @@ def parse_iso(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(str(value))
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
     return parsed
 
 
@@ -221,14 +222,18 @@ def to_iso_timestamp(value: Any) -> str | None:
         return None
     if isinstance(value, (int, float)):
         try:
-            return datetime.fromtimestamp(value / 1000, tz=timezone.utc).isoformat()
+            return datetime.fromtimestamp(value / 1000, tz=UTC).isoformat()
         except (OverflowError, OSError, ValueError):
             return None
     return str(value)
 
 
 def build_history(
-    raw: dict, status: ParcelStatus, step: str | None, *, max_events: int = HISTORY_MAX_EVENTS
+    raw: dict,
+    status: ParcelStatus,
+    step: str | None,
+    *,
+    max_events: int = HISTORY_MAX_EVENTS,
 ) -> list[dict]:
     """Build the canonical ``history`` list from the reply's milestones.
 
@@ -305,7 +310,9 @@ def normalize_parcel(raw: dict, *, include_history: bool = False) -> dict:
         "status": status,
         "raw_status": step,
         "delivered": delivered,
-        "delivered_at": to_iso_timestamp(raw.get("deliveredDate")) if delivered else None,
+        "delivered_at": to_iso_timestamp(raw.get("deliveredDate"))
+        if delivered
+        else None,
         "planned_from": planned_from,
         "planned_to": planned_to,
         "pickup": False,
@@ -349,14 +356,12 @@ def apply_delivered_filter(parcels: list[dict], entry: ConfigEntry) -> list[dict
     shows.
     """
     options = entry.options
-    filter_type = options.get(
-        CONF_DELIVERED_FILTER_TYPE, DEFAULT_DELIVERED_FILTER_TYPE
-    )
+    filter_type = options.get(CONF_DELIVERED_FILTER_TYPE, DEFAULT_DELIVERED_FILTER_TYPE)
     amount = int(
         options.get(CONF_DELIVERED_FILTER_AMOUNT, DEFAULT_DELIVERED_FILTER_AMOUNT)
     )
     if filter_type == "days":
-        cutoff = datetime.now(timezone.utc) - timedelta(days=amount)
+        cutoff = datetime.now(UTC) - timedelta(days=amount)
         return [
             parcel
             for parcel in parcels

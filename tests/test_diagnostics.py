@@ -1,10 +1,9 @@
 """Tests for Colisweb diagnostics."""
+
 from datetime import timedelta
 from unittest.mock import MagicMock
 
-from custom_components.colisweb.diagnostics import (
-    async_get_config_entry_diagnostics,
-)
+from custom_components.colisweb.diagnostics import async_get_config_entry_diagnostics
 from custom_components.colisweb.parcels import normalize_parcel
 
 from .payloads import delivered_sample

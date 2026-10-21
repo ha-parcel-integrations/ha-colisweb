@@ -1,14 +1,12 @@
 """Tests for the Colisweb API client."""
+
 import json
 from unittest.mock import AsyncMock, MagicMock
 
 import aiohttp
 import pytest
 
-from custom_components.colisweb.api import (
-    ColiswebApiClient,
-    ColiswebApiError,
-)
+from custom_components.colisweb.api import ColiswebApiClient, ColiswebApiError
 
 from .payloads import delivered_sample
 
