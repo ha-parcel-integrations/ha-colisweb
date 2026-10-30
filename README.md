@@ -119,6 +119,7 @@ Standard HA removal applies: **Settings → Devices & Services → Colisweb → 
 | `sensor.colisweb_parcel_<code>` | One per tracked parcel; state is the canonical status, attributes carry the full normalised parcel |
 | `sensor.colisweb_next_delivery` | Earliest expected delivery moment across all active parcels |
 | `sensor.colisweb_delivered_parcels` | Recently delivered parcels (see the retention option) |
+| `calendar.colisweb_deliveries` | Read-only calendar of expected deliveries, no extra API calls |
 | `sensor.colisweb_last_successful_update` | Diagnostic: when Colisweb was last polled successfully |
 
 A delivered parcel moves from its per-parcel sensor to the delivered sensor automatically.
