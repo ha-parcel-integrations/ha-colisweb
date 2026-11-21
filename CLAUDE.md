@@ -38,10 +38,11 @@ you act in one of these areas:
 - **No pickup-point sensors here.** Colisweb has no pickup-point step, so
   `en_route_to_pickup_point` and `awaiting_pickup` are deliberately absent.
   The rule below applies to carriers that can tell.
-- **The optional pickup-point summaries are a pair.** A carrier that can tell
-  a parcel is destined for a pickup point exposes
-  `en_route_to_pickup_point` for `pickup is true` before it arrives; one that
-  can reach `ParcelStatus.AT_PICKUP_POINT` also exposes `awaiting_pickup`.
+- **The pickup-point summaries are a pair.** A carrier that can deliver to a
+  pickup point or locker exposes both `en_route_to_pickup_point` and
+  `awaiting_pickup`, even before a real parcel has shown the status or flag
+  (they read 0 until then; record it in `PENDING_*`). A carrier without pickup
+  points exposes neither and keeps `pickup` constantly False.
   See *Parcel contract* in `CONVENTIONS.md`. Say "pickup point", not
   "ServicePoint"/"parcel shop"/"locker", for the generic concept; the
   example carrier demonstrates both canonical sensors.
@@ -70,11 +71,17 @@ you act in one of these areas:
   (`_CONFIRMED_STEPS` holds the seen ones; add to it when a real parcel confirms
   another). A step that does not map at all falls back to the newest milestone
   (delivered, picked up, confirmed) before it reports `unknown`.
-- **`planned_from`/`planned_to` come from the slot** and are published for every
-  status except `delivered`, like the other carriers, unless a reschedule flag is
-  set. `delivery_window` is in `CAPABILITIES`: a real parcel returned the slot
-  filled. `weight`, `dimensions`, `pickup_point` and
-  `receiver` are `None` on purpose; there is no pickup-point step.
+- **`planned_from`/`planned_to` come from the slot**, shaped by `planned_window`
+  in Europe/Paris (the slot arrives in UTC; a single moment runs to 23:59:59
+  local) and emptied by `planned_for_status` at `returning` and `delivered`.
+  `problem` keeps it. `delivery_window` is in `CAPABILITIES`: a real parcel
+  returned the slot filled. `weight`, `dimensions`, `pickup_point` and
+  `receiver` are `None` on purpose; there is no pickup-point step, so `pickup`
+  is a constant `False`.
+- **Divergence from the contract: a rescheduled delivery publishes no slot.**
+  The contract says to report the window as the carrier sends it; here
+  `haveReschedule` / `inRescheduleProcess` empty it, a deliberate choice from the
+  first build that no real rescheduled parcel has confirmed or refuted yet.
 - **`history` is built from three milestone timestamps**, oldest first, plus a
   time-less entry for the current step when no milestone carries its stage.
 - **Pre-1.0 warnings, keys only:** an unlisted step, unexpected reply fields, a

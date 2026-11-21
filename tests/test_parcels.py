@@ -307,12 +307,21 @@ def test_normalize_hides_the_slot_once_delivered():
     assert parcel["planned_to"] is None
 
 
-@pytest.mark.parametrize("step", ["non_deliverable", "package_returned"])
-def test_normalize_keeps_the_slot_on_a_failed_or_returned_delivery(step):
+def test_normalize_keeps_the_slot_on_a_failed_delivery():
     raw = active_sample()
-    raw["step"] = step
+    raw["step"] = "non_deliverable"
     parcel = normalize_parcel(raw)
     assert parcel["planned_from"] == "2026-04-29T13:00:00Z"
+
+
+def test_normalize_empties_the_slot_on_a_return():
+    raw = active_sample()
+    raw["step"] = "package_returned"
+    parcel = normalize_parcel(raw)
+    assert parcel["status"] == ParcelStatus.RETURNING
+    assert parcel["delivered"] is False
+    assert parcel["planned_from"] is None
+    assert parcel["planned_to"] is None
 
 
 def test_normalize_non_deliverable_is_a_problem_that_keeps_its_slot():
@@ -325,12 +334,12 @@ def test_normalize_non_deliverable_is_a_problem_that_keeps_its_slot():
     assert parcel["raw_status"] == "non_deliverable"
 
 
-def test_normalize_collapses_point_estimate_to_no_window_end():
+def test_normalize_stretches_point_estimate_to_the_end_of_the_local_day():
     raw = active_sample()
     raw["endsAt"] = raw["startsAt"]
     parcel = normalize_parcel(raw)
     assert parcel["planned_from"] == "2026-04-29T13:00:00Z"
-    assert parcel["planned_to"] is None
+    assert parcel["planned_to"] == "2026-04-29T23:59:59+02:00"
 
 
 def test_normalize_pending_placeholder():
